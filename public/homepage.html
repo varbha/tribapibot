@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title> Tribbiani's Pizzeria02 </title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<link href="https://fonts.googleapis.com/css?family=Lobster" rel="stylesheet">
+	<link rel="apple-touch-icon" sizes="57x57" href="/apple-icon-57x57.png">
+<link rel="apple-touch-icon" sizes="60x60" href="/apple-icon-60x60.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="76x76" href="/apple-icon-76x76.png">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/apple-icon-120x120.png">
+<link rel="apple-touch-icon" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/apple-icon-152x152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-icon-180x180.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="msapplication-TileColor" content="#ffffff">
+<meta name="msapplication-TileImage" content="/ms-icon-144x144.png">
+<meta name="theme-color" content="#ffffff">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	 <script type="text/javascript">
+    //<![CDATA[
+        $(window).on('load', function() { // makes sure the whole site is loaded 
+            $('#status').fadeOut(); // will first fade out the loading animation 
+            $('#preloader').delay(350).fadeOut('slow'); // will fade out the white DIV that covers the website. 
+            $('body').delay(350).css({'overflow':'visible'});
+        })
+    //]]>
+</script>
+	  <script type="text/javascript">
+      var accessToken = "2c5ab231fb2448c2ba1464dcb3a4e9e7",
+      subscriptionKey = "cc9f4b2ef79940a0a7b6ac1eb9c216b7",
+      baseUrl = "https://api.api.ai/v1/",
+      $speechInput,
+      $recBtn,
+      recognition,
+      messageRecording = "Listening...",
+      messageCouldntHear = "I couldn't hear you, could you say that again?",
+      messageInternalError = "Oh no, there has been an internal server error",
+      messageSorry = "I'm sorry, I don't have the answer to that yet.";
+    $(document).ready(function() {
+      $speechInput = $("#speech");
+      $recBtn = $("#rec");
+	  
+	  $("#clr").click(function(){
+	  $("#speech").val("");
+	  
+	  });
+	  
+	  $("#end").click(function() {
+	  
+	  $("#speech").val("Thanks for ordering!");
+	  
+	 
+	  window.speechSynthesis.cancel();
+      
+	 
+	  });
+	  
+      $speechInput.keypress(function(event) {
+        if (event.which == 13) {
+          event.preventDefault();
+          send();
+		  $("#speech").val("Processing..");
+        }
+      });
+      $recBtn.on("click", function(event) {
+        switchRecognition();
+      });
+      $(".debug__btn").on("click", function() {
+        $(this).next().toggleClass("is-active");
+        return false;
+      });
+    });
+    function startRecognition() {
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+          recognition.interimResults = false;
+      recognition.onstart = function(event) {
+        respond(messageRecording);
+        updateRec();
+      };
+      recognition.onresult = function(event) {
+        recognition.onend = null;
+        
+        var text = "";
+          for (var i = event.resultIndex; i < event.results.length; ++i) {
+            text += event.results[i][0].transcript;
+          }
+          setInput(text);
+        stopRecognition();
+      };
+      recognition.onend = function() {
+        respond(messageCouldntHear);
+        stopRecognition();
+      };
+      recognition.lang = "en-US";
+      recognition.start();
+    }
+  
+    function stopRecognition() {
+      if (recognition) {
+        recognition.stop();
+        recognition = null;
+      }
+      updateRec();
+    }
+    function switchRecognition() {
+      if (recognition) {
+        stopRecognition();
+      } else {
+		window.speechSynthesis.cancel();
+        startRecognition();
+      }
+    }
+    function setInput(text) {
+      $speechInput.val(text);
+      send();
+    }
+    function updateRec() {
+      $recBtn.text(recognition ? "Stop" : "Speak");
+    }
+    function send() {
+      var text = $speechInput.val();
+      $.ajax({
+        type: "POST",
+        url:"/query/",
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        headers: {
+          "Authorization": "Bearer " + accessToken,
+          "ocp-apim-subscription-key": subscriptionKey
+        },
+        data: JSON.stringify({query: text, lang: "en", sessionId: "somerandomthing" }),
+        success: function(data) {
+          prepareResponse(data);
+        },
+        error: function() {
+          respond(messageInternalError);
+        }
+      });
+    }
+    function prepareResponse(val) {
+	console.log(val);
+      var debugJSON = JSON.stringify(val, undefined, 2),
+        spokenResponse = val.result.fulfillment.speech;
+      respond(spokenResponse);
+      debugRespond(debugJSON);
+    }
+    function debugRespond(val) {
+      $("#response").text(val);
+    }
+    function respond(val) {
+      if (val == "") {
+        val = messageSorry;
+      }
+      if (val !== messageRecording) {
+        var msg = new SpeechSynthesisUtterance();
+        msg.voiceURI = "native";
+        msg.text = val;
+        msg.lang = "en-US";
+        window.speechSynthesis.speak(msg);
+      }
+      $("#spokenResponse").addClass("is-active").find(".spoken-response__text").html(val);
+	  $("#speech").val("");
+    }
+	
+	var singin= false;
+	
+	function validate(){
+    $("#inputPassword3").keyup(function(){
+        $("#thischeck").css("display", "inline");
+
+    if($("#inputPassword3").val().length > 7){
+     document.getElementById("thischeck").innerHTML = "valid password length";
+	 $("#inputPassword3").css("border-color","green");
+	  $("#thischeck").css("color", "green");
+	  $('#sub').prop('disabled', false);
+     }
+	 else{
+	  document.getElementById("thischeck").innerHTML = "invalid password length";
+	  $("#inputPassword3").css("border-color","red");
+	  $("#thischeck").css("color", "red");
+	  $('#sub').prop('disabled', true);
+	 }
+  
+});
+
+};
+
+	function act(){
+		
+		
+		signin=true;
+		<!-- alert($('#sname').prop); -->
+		document.getElementById("sname").innerHTML  = "Signed in as: "+$("#inputEmail3").val();
+		$("#sname").css("font-family","Lobster, cursive");
+	};
+  </script>
+	
+	
+	<style>
+	
+	.container-fluid {
+    padding: 60px 50px;
+	
+	
+	}
+	
+	.jumbotron {
+	background-image: url("pizza_jumbotron.jpg") ;
+	background-size: cover;
+	color: white;
+	padding: 5em inherit;
+	font-family: 'Lobster', cursive; 
+	margin-bottom: 0px;
+	background-attachment:fixed;
+	}
+	
+	
+	
+	.logo {
+    font-size: 200px ;
+	
+	}
+	
+	
+	
+	@media screen and (max-width: 768px) {
+    .col-sm-4 {
+        text-align: center;
+        margin: 25px 0;
+    }
+	}
+	
+	.navbar {
+		margin-bottom: 0;
+		background-color: #cc3300;
+		z-index: 9999;
+		border: 0;
+		font-size: 12px !important;
+		line-height: 1.42857143 !important;
+		letter-spacing: 4px;
+		border-radius: 0;
+    }
+
+   .navbar li a, .navbar .navbar-brand {
+		color: #fff !important;
+	}
+	
+	.navbar-brand {
+	
+	font-family: 'Lobster', cursive;
+	letter-spacing: 0px;
+	color: #cc3300;
+	
+	}	
+	
+	
+	
+
+	.navbar-nav li a:hover, .navbar-nav li.active a {
+		color:  #cc3300 !important;
+		background-color: #fff !important;
+	}
+
+	.navbar-default .navbar-toggle {
+		border-color: transparent;
+		color: #fff !important;
+	
+	}
+	
+	.modal-header, .close {
+    background-color: #cc3300;
+    color: #fff !important;
+    text-align: center;
+    font-size: 15px;
+	
+	}
+	
+	.modal-header, .modal-body {
+    padding: 40px 50px;
+	font-size: 15px;
+	font-family: 'Lobster', cursive;
+	}
+	
+	.bg-grey {
+    background-color: #f6f6f6;
+	}
+	
+	input {
+      
+      border: 1px solid #cc3300;
+      color: #cc3300;
+      
+      font-size: 20px;
+      line-height: 43px;
+      padding: 0 0.75em;
+      
+      -webkit-transition: all 0.35s ease-in;
+    }
+	
+	textarea {
+      background-color: #cc3300;
+      border: 1px solid #ffffff;
+      color: #ffffff;
+      padding: 0.5em;
+      width: 100%;
+      -webkit-transition: all 0.35s ease-in;
+	  }
+	
+	
+	
+	
+	#rec , #clr, #end, #signup{
+      
+      
+      color: #cc3300;
+      cursor: pointer;
+      display: inline-block;
+      
+	  letter-spacing: 2px;
+      font-size: 20px;
+      line-height: 43px;
+      padding: 0 0.75em;
+      text-align: center;
+      text-transform: uppercase;
+      -webkit-transition: all 0.35s ease-in;
+    }
+	
+	#rec:hover, #clr:hover, #end:hover {
+      background-color: #cc3300;
+      color: #ffffff;
+    }
+	
+	#rec:active,#clr:active {
+	background-color: #cc3300;
+      color: #ffffff;
+	  
+     outline-color: #cc3300; 
+	
+	
+	}
+	
+	body {
+	
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizelegibility;
+	
+	}
+	
+	#find {
+	
+	color: #cc3300;
+	
+	}
+	
+	#find:hover {
+	
+	background-color: #cc3300;
+      color: #ffffff;
+	}
+	
+	.debug {
+      bottom: 0;
+      position: fixed;
+      right: 0;
+    }
+    .debug__content {
+      font-size: 14px;
+      max-height: 0;
+      overflow: hidden;
+      -webkit-transition: all 0.35s ease-in;
+    }
+    .debug__content.is-active {
+      display: block;
+      max-height: 500px;
+    }
+    .debug__btn {
+      width: 100%;
+    }
+    .spoken-response {
+      max-height: 0;
+      overflow: hidden;
+      -webkit-transition: all 0.35s ease-in;
+    }
+    .spoken-response.is-active {
+      max-height: 400px;
+    }
+    .spoken-response__text {
+      background-color: #cc3300;
+      color: #ffffff;
+      padding: 1em;
+    }
+	
+	
+	 
+	  
+	  
+    
+	
+	#order {
+	
+		
+		background-color: #ffffff;	
+		margin-bottom: 0px;
+	}
+	
+	#order {
+	background-color: #cc3300;
+	color:#ffffff;
+	}
+	
+	.ordering h2, .info h2 {
+	
+	font-family: 'Lobster', cursive;
+	
+	}
+	
+	#our_menu {
+	
+	font-family: 'Lobster', cursive;
+	}
+	
+	
+	.thumbnail {
+    padding: 0 0 15px 0;
+    border: none;
+    border-radius: 0;
+	}
+
+	.thumbnail img {
+		width: 100%;
+		height: 100%;
+		margin-bottom: 10px;
+	}
+	
+	.awards img {
+	
+		width=100%;
+		height=100%;
+		margin-bottom: 10 px;
+	}
+	
+	
+	
+	.thumbnail:hover {
+    box-shadow: 5px 0px 40px rgba(0,0,0, .2);
+	}
+	
+	.know-more, .know-more:visited {
+	background-color: #cc3300;
+	color: #ffffff;
+	
+	
+	}
+	
+	.know-more:hover {
+	background-color:#ffffff;
+	color:#000000;	
+	
+	}
+	
+	.slideanim {visibility:hidden;}
+	.slide {
+      animation-name: slide;
+      -webkit-animation-name: slide;
+      animation-duration: 1s;
+      -webkit-animation-duration: 1s;
+      visibility: visible;
+  }
+  @keyframes slide {
+    0% {
+      opacity: 0;
+      transform: translateY(70%);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0%);
+    }
+  }
+  @-webkit-keyframes slide {
+    0% {
+      opacity: 0;
+      -webkit-transform: translateY(70%);
+    }
+    100% {
+      opacity: 1;
+      -webkit-transform: translateY(0%);
+    }
+  }
+        
+  #preloader {
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    background-color:#fff; /* change if the mask should have another color then white */
+    z-index:99; /* makes sure it stays on top */
+}
+
+#status {
+    width:700px;
+    height:700px;
+    position:absolute;
+    left:50%; /* centers the loading animation horizontally one the screen */
+    top:50%; /* centers the loading animation vertically one the screen */
+    background-image:url(status.gif); /* path to your loading animation */
+    background-repeat:no-repeat;
+    background-position:center;
+    margin:-350px 0 0 -350px; /* is width and height divided by two */
+}
+
+
+
+	</style>
+    
+   
+	
+</head>
+
+<body id="myPage" data-spy="scroll" data-target=".navbar" data-offset="60">
+    
+    <div id="preloader">
+    <div id="status">&nbsp;</div>
+</div>
+
+
+
+
+<div class="jumbotron bg-grey" >
+	<div class="container-fluid  text-center ">
+	<h1> <strong> Tribbiani's Pizzeria</strong> </h1>
+	<p> Delivering the best pizza's, since 1947 </p>
+</div>
+</div>
+
+
+<nav class="navs navbar navbar-default  navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        
+      </button>
+      <a class="navbar-brand" href="#">Tribbiani's Pizzeria</a>
+    </div>
+    <div class="collapse navbar-collapse" id="myNavbar">
+      <ul class="nav navbar-nav navbar-right">
+		<li><a href="#" id="sname" data-toggle="modal" data-target="#SignUpModal">Sign Up</a></li>
+        <li><a href="#order">Order Now!</a></li>
+        <li><a href="#our_menu">What's our menu?</a></li>
+        <li><a href="#michelin">Michelin Star</a></li>
+			
+        <li><a href="#googleMap">Find Us</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<div class="modal fade" id="nav-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+			  <div class="modal-dialog" role="document">
+			    <div class="modal-nav-content">
+			      <div class="modal-nav-body">
+			        <ul>
+			          <li><a href="">Brand</a></li>
+			          <li><a href="#">Home</a></li>
+			          <li><a href="#">Login</a></li>
+			          <li><a href="#" data-toggle="modal" data-target="#SignUpModal">Sign up</a></li>
+			        </ul>
+			      </div>
+			    </div>
+			  </div>
+		</div>
+<div id="SignUpModal" class="modal fade" role="dialog">
+	  	<div class="modal-dialog">
+
+		    <!-- Modal content-->
+		    <div class="modal-content">
+			      <div class="modal-header">
+				        <button type="button" class="close" data-dismiss="modal">&times;</button>
+				        <h4 class="modal-title"><p>Sign Up</h4>
+			      </div>
+			      <div class="modal-body">
+				        <div class="register-form">
+							<form>
+    <div class="form-group row">
+      <label for="inputEmail3" class="col-sm-2 col-form-label">Name</label>
+      <div class="col-sm-10">
+        <input type="name" class="form-control" id="inputEmail3" placeholder="Name" style="border-color:#cc3300" maxlength="10">
+      </div>
+    </div>
+    <div class="form-group row">
+      <label for="inputPassword3" class="col-sm-2 col-form-label">Password</label>
+      <div class="col-sm-10">
+        <input type="password" class="form-control" id="inputPassword3" placeholder="Password" style="border-color:#cc3300" oninput="validate()">
+		<span id="thischeck" style="display:none">incorrect password length</span>
+      </div>
+    </div>
+    <fieldset class="form-group row">
+      <legend class="col-form-legend col-sm-2">Notifs</legend>
+      <div class="col-sm-10">
+        <div class="form-check">
+          <label class="form-check-label">
+            <input class="form-check-input" type="radio" name="gridRadios" id="gridRadios1" value="option1" checked>
+            Recieve Updates
+          </label>
+        </div>
+        <div class="form-check">
+          <label class="form-check-label">
+            <input class="form-check-input" type="radio" name="gridRadios" id="gridRadios2" value="option2">
+            Do not send me updates
+          </label>
+        </div>
+        
+      </div>
+    </fieldset>
+    
+    <div class="form-group row">
+      <div class="offset-sm-2 col-sm-10">
+        <button id="sub" type="submit" class="btn btn-danger pull-right"   data-dismiss="modal" onclick="act()">Sign up</button>
+      </div>
+    </div>
+  </form>
+						</div>
+			      </div>
+
+		    </div>
+
+	  	</div>
+	</div>
+
+
+<!-- ORDERING SECTION -->
+
+<div id="order" class="container-fluid   bg-grey" style="background-color: #cc3300;color:#ffffff;" >
+	<div class="row ">
+		<div class=" info col-sm-4 text-center" >
+		<h2 style="font-family:'Lobster', cursive"> What's this? </h2>
+		<p> For ease of operations for both us at the Pizzeria, and our customers, Tribbiani's Pizzeria employs a software bot to take all our orders. 
+		Dont worry! It's just as helpful and informative as any of our representatives whom you  may call, if you choose to. <strong>Just start by typing in any greeting,
+		 press Enter, and you're good to go!</strong>
+		 </p>
+		 <button id="find" class="btn ">Find Us</button>
+		 </div>
+		 
+		 
+		<div class=" ordering col-sm-8 text-center ">
+		<h2> <strong> Order Now! </strong> </h2>
+		
+		<input class="form-control " id="speech" name="name" placeholder="Say hello! " type="text" required>
+		<br>
+		<br>
+		<button id="rec" class="order_btn btn "> Speak</button>
+		 &nbsp; 		 	
+		<button id="clr" class="order_btn btn">Clear</button>
+		<br>
+		<hr>
+		<div id="spokenResponse" class="spoken-response" style="font-family:'Lobster', cursive; font-size:25px">
+		<div class="spoken-response__text"></div>
+		</div>
+		
+		<button id="end" class="order_btn btn">End</button>
+		
+			
+		</div>
+
+	</div>
+</div>
+
+<div class="debug">
+    
+  </div>
+
+
+<!-- OUR MENU SECTION -->
+<!-- OUR MENU SECTION -->
+
+<div id="our_menu" class="container-fluid bg-col text-center ">
+<h2> <strong>Our Menu</strong> </h2>
+<h4> Have a look at our exciting menu </h4>
+<div class="row text-center slideanim ">
+<div class="col-sm-4  ">
+<div class="thumbnail ">
+<h3> Pizzas </h3>
+<h4> Our pizza collection </h4>
+<img src="pizza_thumbnail.jpg" alt="pizzas" class="img-responsive ">
+<hr>
+<a href ="#pizza_expand" class=" know-more btn" data-toggle="collapse" > Know more</a>
+<div id="pizza_expand" class="collapse">
+<br>
+Our pizzas have stood the test of changing times and consumer preferences while remaining true to 
+the core principles of the Pizzeria – honouring Tribbiani traditions. The choices in our pizzas are
+an exciting mix of Tribbiani specials and the ones that have gained immense love
+from our customers over the many years. 
+	  </div>
+
+</div>
+</div>
+
+<div class="col-sm-4 " >
+<div class="thumbnail" >
+
+<h3> Pastas </h3>
+<h4> The best pastas this side of town. </h4>
+<img src="pasta_thumbnail.jpg" alt="pizzas" class="img-responsive">
+<hr>
+<a href ="#pasta_expand" class=" know-more btn" data-toggle="collapse" > Know more</a>
+<div id="pasta_expand" class="collapse">
+<br>
+With Penne to Fettuccine and every other type of pasta included, 
+our menu provides a myriad of options to choose from. With Grandma Tribbiani’s secret
+ingredient to amp the quality of our freshly made pasta, we promise to tickle your
+taste buds and leave you wanting more!
+	  </div>
+
+</div>
+</div>
+	
+<div class="col-sm-4">
+<div class="thumbnail ">
+
+<h3> Sides </h3>
+<h4> How you doin' ? </h4>
+<img src="sides_thumbnail.jpg" alt="pizzas" class="img-responsive">
+<hr>
+<a href ="#sides_expand" class="know-more btn" data-toggle="collapse" > Know more</a>
+<div id="sides_expand" class="collapse">
+<br>
+These sides are the perfect accompaniment to your mains and can also be enjoyed by itself as well.
+There is wide range to choose from that include popular Italian dishes and also lesser known but equally delicious ones.
+The variety in our sides allows you to choose the perfect dish to supplement your main.
+	  </div>
+
+</div>
+</div>
+</div>
+</div>
+
+
+<div  id="michelin" class="container-fluid bg-grey" >
+  <div class="row slideanim" >
+    <div class="col-sm-4">
+      <!--<img src="michelin.png" alt="" class="img-responsive">-->
+	  <span class="glyphicon glyphicon-star logo"></span>
+    </div>
+    <div class="col-sm-8 " style="font-family: 'Lobster' , cursive;" >
+            <h2><strong>Michelin Star winner 2016:</strong>
+	  </h2> 
+      <p>Our pizza's have stood the test of changing consumer preferences and dynamics, while remaining trye
+		to the core principle of this House, and that is to provide the best pizza's, period. Indulge in our 
+		large variety of pizza's, and we assure you'll love what you order.
+		Our pizza's have stood the test of changing consumer preferences and dynamics, while remaining trye
+		to the core principle of this House, and that is to provide the best pizza's, period. Indulge in our 
+		large variety of pizza's, and we assure you'll love what you order.
+       </p>
+	   <br>
+	   
+	   <button class="btn " data-toggle="modal" data-target="#myModal" >What's the Michelin Star?</button>
+	   
+	   <div class="modal fade" id="myModal" role="dialog">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4><span class="glyphicon glyphicon-star"></span> Michelin Star</h4>
+				</div>
+				<div class="modal-body">
+					<h2 style="font-family: 'Lobster', cursive;font-size: large"> Michelin Guides are a series of guide books published 
+					by the French company Michelin for more than a century. The term normally refers to the annually 
+					published Michelin Red Guide, the oldest European hotel and restaurant reference guide, which a
+					wards Michelin stars for excellence to a select few establishments. The acquisition or loss 
+					of a star can have dramatic effects on the success of a restaurant. 
+					Michelin also publishes a series of general guides to countries.
+					
+					</h2>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-danger btn-default pull-left" data-dismiss="modal">
+					<span class="glyphicon glyphicon-remove"></span> Cancel
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+					
+	   
+    </div>
+  </div>
+</div>
+
+<div id="googleMap" style="height:400px;width:100%;"></div>
+
+<!-- Add Google Maps -->
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB6IL63-jg-TyjoCZcG9As9_qHRbJyIbG0&callback=initialize" async defer></script>
+
+<script>
+var myCenter = new google.maps.LatLng(19.2582529,72.9813962);
+
+var map;
+function initialize() {
+  map = new google.maps.Map(document.getElementById('googleMap'), {
+    center: {lat: 19.2582529, lng: 72.9813962},
+    zoom: 18
+  });
+}
+
+
+google.maps.event.addDomListener(window, 'load', initialize);
+</script>
+
+
+	
+	
+<footer class="foot bg-grey container-fluid text-center">
+<p> Made by Varun Bhatia for SE.
+<a href="http://auctoreality.in" target="_blank_"title=" Aucto Reality" >  Visit page</a>
+</p>
+</footer>
+
+<script>
+$(document).ready(function(){
+
+	$("#find").on('click',function(event){
+	var divPosition = $('#googleMap').offset();
+	$('html, body').animate({scrollTop: divPosition.top}, "slow");
+	
+	});
+
+  // Add smooth scrolling to all links in navbar + footer link
+  $(".navbar a, footer a[href='#myPage']").on('click', function(event) {
+    // Make sure this.hash has a value before overriding default behavior
+    if (this.hash !== ""){
+      // Prevent default anchor click behavior
+      event.preventDefault();
+
+      // Store hash
+      var hash = this.hash;
+
+      // Using jQuery's animate() method to add smooth page scroll
+      // The optional number (900) specifies the number of milliseconds it takes to scroll to the specified area
+      $('html, body').animate({
+        scrollTop: $(hash).offset().top
+      }, 750, function(){
+   
+        // Add hash (#) to URL when done scrolling (default click behavior)
+        window.location.hash = hash;
+      });
+    } // End if
+  });
+
+
+ $(window).scroll(function() {
+    $(".slideanim").each(function(){
+      var pos = $(this).offset().top;
+
+      var winTop = $(window).scrollTop();
+        if (pos < winTop + 600) {
+          $(this).addClass("slide");
+        }
+    });
+  });
+})
+</script>
+
+
+
+
+
+
+		
+
+
+	
+</body>
+</html>
+
