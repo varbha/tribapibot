@@ -3,7 +3,7 @@ var app        = express();
 var bodyParser = require('body-parser');
 var apiai = require('apiai');
 global.mongoose=require('mongoose');
-var things= require('./index.js');
+var things= require('./routes/index.js');
 
 mongoose.connect("mongodb://localhost:27017/oosedb", function (err) {
     if (err) {
