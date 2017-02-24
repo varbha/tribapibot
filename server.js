@@ -3,9 +3,7 @@ var app        = express();
 var bodyParser = require('body-parser');
 var apiai = require('apiai');
 global.mongoose=require('mongoose');
-var apiai = require('apiai');
-var api = apiai("2c5ab231fb2448c2ba1464dcb3a4e9e7"); //apiai key
-var QueryResponse= require('./models/QueryResponse');
+var things= require('./index.js');
 
 mongoose.connect("mongodb://localhost:27017/oosedb", function (err) {
     if (err) {
@@ -23,15 +21,13 @@ app.use(bodyParser.urlencoded({
 extended: true }));
 app.use(bodyParser.json());
 
+app.use("/",things);
 
-//---------------route handling
+/* //---------------route handling
 app.get('/', function(req, res) {
 	  console.log(__dirname);
     res.sendFile(__dirname+'/public/homepage.html');
 });
-
-
-
 
 
   app.post('/query/',function(req,res){
@@ -65,7 +61,7 @@ app.get('/', function(req, res) {
 
 
 
-  });
+  }); */
  /*  app.post("/query/",function(req,res){
 	  console.log(req.body.query);
 	  res.json("thanks");
